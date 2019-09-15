@@ -36,5 +36,7 @@ demo.gameEvents.on("round_freeze_end", e => {
 demo.gameEvents.on("weapon_fire", e => {
 	const player = demo.entities.getByUserId(e.userid);
 	report("weapon_fire", player.name||e.userid, e.weapon);
+	//TODO: Report position and eye angles when smokes and flashes are thrown
+	//if (e.weapon === "weapon_smokegrenade") console.log(player);
 });
 demo.parse(data);

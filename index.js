@@ -11,14 +11,25 @@ function safe(s) {
 	return s.replace(/[:\0-\x1f]/g, ".");
 }
 
-let current_round = 0;
+let current_round = 0, round_start_time = 0;
+
+//Report something interesting
+//Format: thing:<tick>:R<round>:<time within round>:arg:arg:arg:arg
+//All args are passed through safe().
+function report(key) {
+	let msg = key + ":" + demo.currentTick + ":R" + current_round + ":" + (demo.currentTime - round_start_time);
+	for (let i=1; i<arguments.length; ++i) msg += ":" + safe(arguments[i]);
+	console.log(msg);
+}
+
 demo.gameEvents.on("round_start", e => {
 	if (demo.entities.gameRules.isWarmup) current_round = 0;
 	else current_round = demo.entities.gameRules.roundsPlayed + 1;
+	round_start_time = demo.currentTime;
 });
 
 demo.gameEvents.on("weapon_fire", e => {
 	const player = demo.entities.getByUserId(e.userid);
-	console.log(`weapon_fire:R${current_round}:${safe(player.name||e.userid)}:${e.weapon}`);
+	report("weapon_fire", player.name||e.userid, e.weapon);
 });
 demo.parse(data);

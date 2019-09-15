@@ -23,6 +23,13 @@ function report(key) {
 	console.log(msg);
 }
 
+//Return the player's location in a consistent and compact way
+function location(player) {
+	if (!player) return "";
+	const pos = player.position, eye = player.eyeAngles;
+	return [pos.x, pos.y, pos.z, eye.pitch, eye.yaw].map(n => n.toFixed(2)).join(",")
+}
+
 demo.gameEvents.on("round_start", e => {
 	if (demo.entities.gameRules.isWarmup) current_round = 0;
 	else current_round = demo.entities.gameRules.roundsPlayed + 1;
@@ -35,8 +42,6 @@ demo.gameEvents.on("round_freeze_end", e => {
 
 demo.gameEvents.on("weapon_fire", e => {
 	const player = demo.entities.getByUserId(e.userid);
-	report("weapon_fire", player.name||e.userid, e.weapon);
-	//TODO: Report position and eye angles when smokes and flashes are thrown
-	//if (e.weapon === "weapon_smokegrenade") console.log(player);
+	report("weapon_fire", player.name||e.userid, e.weapon, location(player));
 });
 demo.parse(data);

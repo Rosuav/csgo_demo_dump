@@ -34,6 +34,11 @@ demo.gameEvents.on("round_start", e => {
 	if (demo.entities.gameRules.isWarmup) current_round = 0;
 	else current_round = demo.entities.gameRules.roundsPlayed + 1;
 	round_start_time = demo.currentTime;
+	//Once we get into the game proper, report the participants.
+	if (current_round === 1) demo.players.forEach((p, i) => {
+		if (p.steam64Id !== "0") console.log("player:" + i + ":" + safe(p.steam64Id) + ":" + safe(p.name));
+	});
+	if (current_round) report("round_start"); //Show the tick numbers of round starts (other than warmup)
 });
 
 demo.gameEvents.on("round_freeze_end", e => {
@@ -44,4 +49,5 @@ demo.gameEvents.on("weapon_fire", e => {
 	const player = demo.entities.getByUserId(e.userid);
 	report("weapon_fire", player.name||e.userid, e.weapon, location(player));
 });
+
 demo.parse(data);

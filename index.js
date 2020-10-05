@@ -30,6 +30,7 @@ function location(player) {
 	return [pos.x, pos.y, pos.z, eye.pitch, eye.yaw].map(n => n.toFixed(2)).join(",")
 }
 
+let stephen = -1, rosuav = -1;
 demo.gameEvents.on("round_start", e => {
 	if (demo.entities.gameRules.isWarmup) current_round = 0;
 	else current_round = demo.entities.gameRules.roundsPlayed + 1;
@@ -37,17 +38,36 @@ demo.gameEvents.on("round_start", e => {
 	//Once we get into the game proper, report the participants.
 	if (current_round === 1) demo.players.forEach((p, i) => {
 		if (p.steam64Id !== "0") console.log("player:" + i + ":" + safe(p.steam64Id) + ":" + safe(p.name));
+		if (p.steam64Id === '76561198197864845') stephen = i;
+		if (p.steam64Id === '76561198043731689') rosuav = i;
 	});
 	if (current_round) report("round_start"); //Show the tick numbers of round starts (other than warmup)
 });
 
+let rosdead = false;
 demo.gameEvents.on("round_freeze_end", e => {
 	round_start_time = demo.currentTime;
+	rosdead = false;
+});
+
+//Special: Locate that one awesome moment where I called "go up mid" and Stephen found the guy who was trying to save!
+//match730_003435962081474511203_1366807403_171.dem round 14.
+demo.gameEvents.on("player_death", e => {
+	const victim = demo.entities.getByUserId(e.userid);
+	const attack = demo.entities.getByUserId(e.attacker);
+	if (victim && victim.clientSlot === rosuav) rosdead = true;
+	else if (attack && attack.clientSlot === stephen && rosdead)
+	{
+		const v = victim.position.x ** 2 + victim.position.y ** 2; //Distance-squared from origin to victim
+		const a = attack.position.x ** 2 + attack.position.y ** 2; //... and attacker
+		if (v < 5e5 && a < 5e5) report("stephenkill", e.weapon, `${a|0}-${v|0}`, location(victim));
+		//console.log(e)
+	}
 });
 
 demo.gameEvents.on("weapon_fire", e => {
 	const player = demo.entities.getByUserId(e.userid);
-	report("weapon_fire", player.name||e.userid, e.weapon, location(player));
+	//report("weapon_fire", player.name||e.userid, e.weapon, location(player));
 });
 
 demo.parse(data);

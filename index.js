@@ -31,6 +31,7 @@ function location(player) {
 }
 
 const interesting_steamid = {"76561198197864845": "Stephen", "76561198043731689": "Rosuav"};
+const teams = "?STC"; // == Unknown, Spectator, Terrorist, CT
 let stephen = -1, rosuav = -1;
 demo.gameEvents.on("round_start", e => {
 	if (demo.entities.gameRules.isWarmup) current_round = 0;
@@ -74,7 +75,7 @@ demo.gameEvents.on("weapon_fire", e => {
 demo.gameEvents.on("smokegrenade_detonate", e => {
 	const player = demo.entities.getByUserId(e.userid);
 	if (!interesting_steamid[player.steam64Id]) return;
-	report("smokegrenade_detonate", player.name||e.userid, `${e.x},${e.y},${e.z}`);
+	report("smokegrenade_detonate", player.name||e.userid, teams[player.props.DT_BaseEntity.m_iTeamNum], `${e.x},${e.y},${e.z}`);
 });
 
 let last_flash = "0,0,0";
@@ -86,7 +87,6 @@ demo.gameEvents.on("flashbang_detonate", e => {
 	report("flashbang_detonate", player.name||e.userid, last_flash = `${e.x},${e.y},${e.z}`, ""+player.props.DT_CSPlayer.m_flFlashDuration);
 });
 
-const teams = "?STC"; // == Unknown, Spectator, Terrorist, CT
 demo.gameEvents.on("player_blind", e => {
 	const victim = demo.entities.getByUserId(e.userid);
 	const attack = demo.entities.getByUserId(e.attacker);

@@ -119,3 +119,13 @@ demo.gameEvents.on("cs_win_panel_round", e => {
 });
 
 demo.parse(data);
+
+/*
+Other stats to try to find or calculate:
+- Score/round
+- K/R
+- K/D
+- Entry K/D
+- ADR
+- Whether the match had blatant cheaters in it (so I can calculate all those stats for the cheater-free matches)
+*/

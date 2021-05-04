@@ -31,6 +31,7 @@ function location(player) {
 }
 
 const interesting_steamid = {"76561198197864845": "Stephen", "76561198043731689": "Rosuav"};
+const players_by_index = { };
 const teams = "?STC"; // == Unknown, Spectator, Terrorist, CT
 let stephen = -1, rosuav = -1;
 demo.gameEvents.on("round_start", e => {
@@ -39,9 +40,10 @@ demo.gameEvents.on("round_start", e => {
 	round_start_time = demo.currentTime;
 	//Once we get into the game proper, report the participants.
 	if (current_round === 1) demo.players.forEach((p, i) => {
-		if (p.steam64Id !== "0") console.log("player:" + i + ":" + safe(p.steam64Id) + ":" + safe(p.name));
+		if (p.steam64Id !== "0") console.log("player:" + i + ":" + safe(p.steam64Id) + ":" + safe(p.name) + ":" + p.clientSlot);
 		if (p.steam64Id === '76561198197864845') stephen = i;
 		if (p.steam64Id === '76561198043731689') rosuav = i;
+		players_by_index[p.index] = p;
 	});
 	if (current_round) report("round_start"); //Show the tick numbers of round starts (other than warmup)
 });
@@ -53,6 +55,7 @@ demo.gameEvents.on("round_freeze_end", e => {
 });
 
 demo.gameEvents.on("player_death", e => {
+	if (!current_round) return; //Ignore warmup
 	const victim = demo.entities.getByUserId(e.userid);
 	const attack = demo.entities.getByUserId(e.attacker);
 	/*
@@ -93,6 +96,7 @@ let last_flash = "0,0,0";
 demo.gameEvents.on("flashbang_detonate", e => {
 	//TODO: Count how many people got caught by it
 	//The player_blind events happen *after* the detonation event.
+	//Possibly demo.gameEvents.once("tick", ...) or something?
 	const player = demo.entities.getByUserId(e.userid);
 	if (!interesting_steamid[player.steam64Id]) return;
 	report("flashbang_detonate", player.name||e.userid, last_flash = `${e.x},${e.y},${e.z}`, ""+player.props.DT_CSPlayer.m_flFlashDuration);
@@ -107,6 +111,11 @@ demo.gameEvents.on("player_blind", e => {
 		e.userid === e.attacker ? "Self" : teams[attack.props.DT_BaseEntity.m_iTeamNum] + "v" + teams[victim.props.DT_BaseEntity.m_iTeamNum],
 		last_flash, location(victim), ""+e.blind_duration,
 	);
+});
+
+demo.gameEvents.on("cs_win_panel_round", e => {
+	const player = players_by_index[e.funfact_player];
+	report("round_end", e.funfact_token, player ? player.name : "", ""+e.funfact_data1, ""+e.funfact_data2, ""+e.funfact_data3);
 });
 
 demo.parse(data);

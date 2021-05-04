@@ -77,11 +77,25 @@ demo.gameEvents.on("smokegrenade_detonate", e => {
 	report("smokegrenade_detonate", player.name||e.userid, `${e.x},${e.y},${e.z}`);
 });
 
+let last_flash = "0,0,0";
 demo.gameEvents.on("flashbang_detonate", e => {
-	//TODO: See how many people got caught by it
+	//TODO: Count how many people got caught by it
+	//The player_blind events happen *after* the detonation event.
 	const player = demo.entities.getByUserId(e.userid);
 	if (!interesting_steamid[player.steam64Id]) return;
-	report("flashbang_detonate", player.name||e.userid, `${e.x},${e.y},${e.z}`);
+	report("flashbang_detonate", player.name||e.userid, last_flash = `${e.x},${e.y},${e.z}`, ""+player.props.DT_CSPlayer.m_flFlashDuration);
+});
+
+const teams = "?STC"; // == Unknown, Spectator, Terrorist, CT
+demo.gameEvents.on("player_blind", e => {
+	const victim = demo.entities.getByUserId(e.userid);
+	const attack = demo.entities.getByUserId(e.attacker);
+	if (!interesting_steamid[attack.steam64Id]) return;
+	report("flash_hit", attack.name||e.attacker,
+		//"CvC" or "TvT" is a team flash. "CvT" means CT flashed T, "TvC" means T flashed CT.
+		e.userid === e.attacker ? "Self" : teams[attack.props.DT_BaseEntity.m_iTeamNum] + "v" + teams[victim.props.DT_BaseEntity.m_iTeamNum],
+		last_flash, location(victim), ""+e.blind_duration,
+	);
 });
 
 demo.parse(data);

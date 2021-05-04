@@ -141,6 +141,7 @@ demo.on("end", e => {
 	demo.players.forEach((p, i) => {
 		if (p.steam64Id === "0") return;
 		let kills = 0, assists = 0, deaths = 0, objectives = 0, eqval_by_kill = 0, save_kills = 0, lightbuy_kills = 0;
+		let other_team = 5 - p.props.DT_BaseEntity.m_iTeamNum;
 		for (let r = 0; r < current_round; r++) {
 			const k = ("000" + r).slice(-3);
 			const frags = p.props.m_iMatchStats_Kills[k];
@@ -151,9 +152,21 @@ demo.on("end", e => {
 			if (frags) {
 				let eq = p.props.m_iMatchStats_EquipmentValue[k];
 				eqval_by_kill += eq * frags;
-				//TODO: Filter down to just kills when the other team was on a full buy
-				if (r != 0 && r != 15 && eq < 1000) save_kills += frags;
-				if (r != 0 && r != 15 && eq < 2900) lightbuy_kills += frags; //I'd set it to 3000 but an AK with a starting pistol counts as a full buy in silvers
+				//Filter down to just kills when the other team was on a full buy
+				let enemy_eq = 0, enemies = 0;
+				demo.players.forEach(p => {
+					if (p.props.DT_BaseEntity.m_iTeamNum !== other_team) return;
+					enemy_eq += p.props.m_iMatchStats_EquipmentValue[k];
+					enemies++;
+				});
+				//A "full buy" is roughly three grand per player for a rifle, plus
+				//whatever utility they get, plus 650-1000 for armor. I'll count a
+				//buy round as any where the average enemy equipment is 3500, so a
+				//single player on a light buy (maybe a Scout) won't stop it.
+				if (enemy_eq >= enemies * 3500) {
+					if (eq < 1000) save_kills += frags;
+					else if (eq < 2900) lightbuy_kills += frags; //I'd set it to 3000 but an AK with a starting pistol counts as a full buy in silvers...
+				}
 			}
 		}
 		console.log("player:" + i

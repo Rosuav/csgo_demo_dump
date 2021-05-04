@@ -30,6 +30,7 @@ function location(player) {
 	return [pos.x, pos.y, pos.z, eye.pitch, eye.yaw].map(n => n.toFixed(2)).join(",")
 }
 
+const interesting_steamid = {"76561198197864845": "Stephen", "76561198043731689": "Rosuav"};
 let stephen = -1, rosuav = -1;
 demo.gameEvents.on("round_start", e => {
 	if (demo.entities.gameRules.isWarmup) current_round = 0;
@@ -68,6 +69,19 @@ demo.gameEvents.on("player_death", e => {
 demo.gameEvents.on("weapon_fire", e => {
 	const player = demo.entities.getByUserId(e.userid);
 	//report("weapon_fire", player.name||e.userid, e.weapon, location(player));
+});
+
+demo.gameEvents.on("smokegrenade_detonate", e => {
+	const player = demo.entities.getByUserId(e.userid);
+	if (!interesting_steamid[player.steam64Id]) return;
+	report("smokegrenade_detonate", player.name||e.userid, `${e.x},${e.y},${e.z}`);
+});
+
+demo.gameEvents.on("flashbang_detonate", e => {
+	//TODO: See how many people got caught by it
+	const player = demo.entities.getByUserId(e.userid);
+	if (!interesting_steamid[player.steam64Id]) return;
+	report("flashbang_detonate", player.name||e.userid, `${e.x},${e.y},${e.z}`);
 });
 
 demo.parse(data);

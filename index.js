@@ -52,11 +52,12 @@ demo.gameEvents.on("round_freeze_end", e => {
 	rosdead = false;
 });
 
-//Special: Locate that one awesome moment where I called "go up mid" and Stephen found the guy who was trying to save!
-//match730_003435962081474511203_1366807403_171.dem round 14.
 demo.gameEvents.on("player_death", e => {
 	const victim = demo.entities.getByUserId(e.userid);
 	const attack = demo.entities.getByUserId(e.attacker);
+	/*
+	//Special: Locate that one awesome moment where I called "go up mid" and Stephen found the guy who was trying to save!
+	//match730_003435962081474511203_1366807403_171.dem round 14.
 	if (victim && victim.clientSlot === rosuav) rosdead = true;
 	else if (attack && attack.clientSlot === stephen && rosdead)
 	{
@@ -64,6 +65,16 @@ demo.gameEvents.on("player_death", e => {
 		const a = attack.position.x ** 2 + attack.position.y ** 2; //... and attacker
 		if (v < 5e5 && a < 5e5) report("stephenkill", e.weapon, `${a|0}-${v|0}`, location(victim));
 		//console.log(e)
+	}
+	*/
+	if (attack && interesting_steamid[attack.steam64Id])
+		report("kill", attack.name||attack.userid, e.weapon, location(attack), location(victim));
+	if (victim && interesting_steamid[victim.steam64Id]) {
+		//This shows the weapon I was killed with, but not the weapon I was killed holding.
+		//True analysis should include (a) what weapon I started the round with, (b) what primary
+		//I possessed as I died, (c) which weapon was currently active, and (d) whether I'd just
+		//stupidly grabbed a new weapon. Also maybe (e) whether the weapon was empty?
+		report("death", victim.name||victim.userid, e.weapon, location(attack), location(victim));
 	}
 });
 

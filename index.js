@@ -38,9 +38,14 @@ demo.gameEvents.on("round_start", e => {
 	if (demo.entities.gameRules.isWarmup) current_round = 0;
 	else current_round = demo.entities.gameRules.roundsPlayed + 1;
 	round_start_time = demo.currentTime;
-	//Once we get into the game proper, report the participants.
+	//Once we get into the game proper, report the participants. Note that the team shown
+	//is the team that player *started* on; in the game history browser, it shows the team
+	//that everyone *ended* on (as it's a match-end scoreboard), so they're inverted.
 	if (current_round === 1) demo.players.forEach((p, i) => {
-		if (p.steam64Id !== "0") console.log("player:" + i + ":" + safe(p.steam64Id) + ":" + safe(p.name) + ":" + p.clientSlot);
+		if (p.steam64Id !== "0") console.log("player:" + i
+			+ ":" + safe(p.steam64Id) + ":" + safe(p.name)
+			+ ":" + p.clientSlot + ":" + teams[p.props.DT_BaseEntity.m_iTeamNum]
+		);
 		if (p.steam64Id === '76561198197864845') stephen = i;
 		if (p.steam64Id === '76561198043731689') rosuav = i;
 		players_by_index[p.index] = p;
@@ -48,10 +53,11 @@ demo.gameEvents.on("round_start", e => {
 	if (current_round) report("round_start"); //Show the tick numbers of round starts (other than warmup)
 });
 
-let rosdead = false;
+let rosdead = false, first_kill = "E";
 demo.gameEvents.on("round_freeze_end", e => {
 	round_start_time = demo.currentTime;
 	rosdead = false;
+	first_kill = "E"; //Entry kill/death
 });
 
 demo.gameEvents.on("player_death", e => {
@@ -70,15 +76,17 @@ demo.gameEvents.on("player_death", e => {
 		//console.log(e)
 	}
 	*/
-	if (attack && interesting_steamid[attack.steam64Id])
-		report("kill", attack.name||attack.userid, e.weapon, location(attack), location(victim));
-	if (victim && interesting_steamid[victim.steam64Id]) {
+	let tag, who;
+	if (attack && interesting_steamid[attack.steam64Id]) {tag = "kill"; who = attack;}
+	if (victim && interesting_steamid[victim.steam64Id]) {tag = "death"; who = victim;}
+	if (tag) {
 		//This shows the weapon I was killed with, but not the weapon I was killed holding.
 		//True analysis should include (a) what weapon I started the round with, (b) what primary
 		//I possessed as I died, (c) which weapon was currently active, and (d) whether I'd just
 		//stupidly grabbed a new weapon. Also maybe (e) whether the weapon was empty?
-		report("death", victim.name||victim.userid, e.weapon, location(attack), location(victim));
+		report(tag, who.name||who.userid, first_kill + (e.headshot ? "H" : ""), e.weapon, location(attack), location(victim));
 	}
+	first_kill = ""; //The first kill of the round gets a flag, absent if not first
 });
 
 demo.gameEvents.on("weapon_fire", e => {
@@ -118,6 +126,47 @@ demo.gameEvents.on("cs_win_panel_round", e => {
 	report("round_end", e.funfact_token, player ? player.name : "", ""+e.funfact_data1, ""+e.funfact_data2, ""+e.funfact_data3);
 });
 
+const mvp_reason_desc = [undefined,
+	"most eliminations",
+	"planting the bomb",
+	"defusing the bomb",
+];
+demo.gameEvents.on("round_mvp", e => {
+	const player = demo.entities.getByUserId(e.userid);
+	//There's an associated e.value, but it doesn't seem to ever carry any information.
+	report("round_mvp", player ? player.name : "", mvp_reason_desc[e.reason] || "reason code "+e.reason);
+});
+
+demo.on("end", e => {
+	demo.players.forEach((p, i) => {
+		if (p.steam64Id === "0") return;
+		let kills = 0, assists = 0, deaths = 0, objectives = 0, eqval_by_kill = 0, save_kills = 0, lightbuy_kills = 0;
+		for (let r = 0; r < current_round; r++) {
+			const k = ("000" + r).slice(-3);
+			const frags = p.props.m_iMatchStats_Kills[k];
+			kills += frags;
+			assists += p.props.m_iMatchStats_Assists[k];
+			deaths += p.props.m_iMatchStats_Deaths[k];
+			objectives += p.props.m_iMatchStats_Objective[k];
+			if (frags) {
+				let eq = p.props.m_iMatchStats_EquipmentValue[k];
+				eqval_by_kill += eq * frags;
+				//TODO: Filter down to just kills when the other team was on a full buy
+				if (r != 0 && r != 15 && eq < 1000) save_kills += frags;
+				if (r != 0 && r != 15 && eq < 2900) lightbuy_kills += frags; //I'd set it to 3000 but an AK with a starting pistol counts as a full buy in silvers
+			}
+		}
+		console.log("player:" + i
+			+ ":" + safe(p.steam64Id) + ":" + safe(p.name)
+			+ ":" + p.clientSlot + ":" + teams[p.props.DT_BaseEntity.m_iTeamNum]
+			+ ":" + kills + ":" + assists + ":" + deaths + ":" + objectives
+			+ ":S" + save_kills + ":L" + lightbuy_kills
+			+ ":" + (kills ? Math.floor(eqval_by_kill / kills) : 0)
+		);
+	});
+	//console.log(demo.players[0]);
+});
+
 demo.parse(data);
 
 /*
@@ -125,7 +174,7 @@ Other stats to try to find or calculate:
 - Score/round
 - K/R
 - K/D
-- Entry K/D
+- Entry K/D (filter to those with the "E" flag)
 - ADR
 - Whether the match had blatant cheaters in it (so I can calculate all those stats for the cheater-free matches)
 */

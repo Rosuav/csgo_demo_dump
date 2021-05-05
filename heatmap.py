@@ -15,7 +15,7 @@ data = [
 # If the coordinates need to be inverted, set (eg) XMIN to a high
 # number and XMAX to a low number. Fine-tune to align the heatmap.
 IMAGE_WIDTH = IMAGE_HEIGHT = 1024
-MAP_XMIN = -2500; MAP_YMIN = -1200; MAP_XMAX = 2100; MAP_YMAX = 3400
+MAP_XMIN = -2500; MAP_YMIN = 3400; MAP_XMAX = 2100; MAP_YMAX = -1200
 MAP_WIDTH = MAP_XMAX - MAP_XMIN
 MAP_HEIGHT = MAP_YMAX - MAP_YMIN
 SPREAD_RADIUS = 16 # pixels (uses quadratic dropoff)
@@ -24,7 +24,7 @@ SPREAD_RADIUS = 16 # pixels (uses quadratic dropoff)
 # resolution than the pixels), and the spread amount is calculated using
 # quadratic dropoff that falls to zero at DECAY_RADIUS (which is dist^2).
 SPREAD_RANGE = range(-SPREAD_RADIUS, SPREAD_RADIUS + 1)
-DECAY_RADIUS = MAP_WIDTH * MAP_HEIGHT / IMAGE_WIDTH / IMAGE_HEIGHT * SPREAD_RADIUS ** 2
+DECAY_RADIUS = abs(MAP_WIDTH * MAP_HEIGHT / IMAGE_WIDTH / IMAGE_HEIGHT * SPREAD_RADIUS ** 2)
 
 def img_to_map(x, y):
 	return (

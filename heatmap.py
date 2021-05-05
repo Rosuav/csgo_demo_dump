@@ -15,7 +15,7 @@ data = [
 # If the coordinates need to be inverted, set (eg) XMIN to a high
 # number and XMAX to a low number. Fine-tune to align the heatmap.
 IMAGE_WIDTH = IMAGE_HEIGHT = 1024
-MAP_XMIN = -2500; MAP_YMIN = 3400; MAP_XMAX = 2100; MAP_YMAX = -1200
+MAP_XMIN = -2400; MAP_YMIN = 3150; MAP_XMAX = 1950; MAP_YMAX = -1200
 MAP_WIDTH = MAP_XMAX - MAP_XMIN
 MAP_HEIGHT = MAP_YMAX - MAP_YMIN
 SPREAD_RADIUS = 16 # pixels (uses quadratic dropoff)

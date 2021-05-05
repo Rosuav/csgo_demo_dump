@@ -38,16 +38,6 @@ def map_to_img(x, y):
 		int((y - MAP_YMIN) * IMAGE_HEIGHT / MAP_HEIGHT),
 	)
 
-def inverse_squares(basex, basey, data):
-	# Calculate the distance-squared to each data point.
-	tot = 0
-	for x, y, value in data:
-		dist = (x-basex) ** 2 + (y-basey) ** 2
-		if dist >= DECAY_RANGE2: continue
-		print(basex, basey, dist ** 0.5)
-		tot += value * (DECAY_RANGE2 - dist) ** 0.5 / DECAY_RANGE
-	return tot
-
 def build_map(data):
 	img = [[0.0] * IMAGE_WIDTH for _ in range(IMAGE_HEIGHT)]
 	peak = 0

@@ -97,7 +97,7 @@ demo.gameEvents.on("weapon_fire", e => {
 demo.gameEvents.on("smokegrenade_detonate", e => {
 	const player = demo.entities.getByUserId(e.userid);
 	if (!interesting_steamid[player.steam64Id]) return;
-	report("smokegrenade_detonate", player.name||e.userid, teams[player.props.DT_BaseEntity.m_iTeamNum], `${e.x},${e.y},${e.z}`);
+	report("smokegrenade_detonate", player.name||e.userid, `${e.x},${e.y},${e.z}`);
 });
 
 let last_flash = "0,0,0";
@@ -113,10 +113,9 @@ demo.gameEvents.on("flashbang_detonate", e => {
 demo.gameEvents.on("player_blind", e => {
 	const victim = demo.entities.getByUserId(e.userid);
 	const attack = demo.entities.getByUserId(e.attacker);
-	if (!interesting_steamid[attack.steam64Id]) return;
+	if (!attack || !interesting_steamid[attack.steam64Id]) return; //Attacker can be zero. How? Who flashed you? Only seen in warmup so far.
 	report("flash_hit", attack.name||e.attacker,
-		//"CvC" or "TvT" is a team flash. "CvT" means CT flashed T, "TvC" means T flashed CT.
-		e.userid === e.attacker ? "Self" : teams[attack.props.DT_BaseEntity.m_iTeamNum] + "v" + teams[victim.props.DT_BaseEntity.m_iTeamNum],
+		e.userid === e.attacker ? "Self" : attack.props.DT_BaseEntity.m_iTeamNum === victim.props.DT_BaseEntity.m_iTeamNum ? "Team" : "",
 		last_flash, location(victim), ""+e.blind_duration,
 	);
 });
@@ -136,6 +135,8 @@ demo.gameEvents.on("round_mvp", e => {
 	//There's an associated e.value, but it doesn't seem to ever carry any information.
 	report("round_mvp", player ? player.name : "", mvp_reason_desc[e.reason] || "reason code "+e.reason);
 });
+
+demo.gameEvents.on("cs_intermission", e => report("cs_intermission")); //Doesn't seem to work. For now, assume that R16 == half-time switch.
 
 demo.on("end", e => {
 	demo.players.forEach((p, i) => {

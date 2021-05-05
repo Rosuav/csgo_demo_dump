@@ -2,3 +2,4 @@ node_modules
 search.log
 *.png
 heatmap.html
+all_data.txt

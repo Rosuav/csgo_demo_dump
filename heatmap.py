@@ -71,7 +71,9 @@ def add_dot_to_image(img, x, y, value, peak):
 	peak = 0
 	for dx in SPREAD_RANGE:
 		for dy in SPREAD_RANGE:
-			v = img[basey + dy][basex + dx]
+			if basey + dy < 0 or basex + dx < 0: continue # No wrapping
+			try: v = img[basey + dy][basex + dx]
+			except IndexError: continue # Past edge? No dot needed
 			if dx or dy:
 				altx, alty = img_to_map(basex + dx, basey + dy)
 				dist = (altx - x) ** 2 + (alty - y) ** 2
@@ -110,6 +112,7 @@ with open("all_data.txt") as f:
 	for line in f:
 		if line.startswith("match730_"):
 			# New demo file, identified by file name
+			print(line.strip())
 			teams = { }
 			continue
 		key, tick, round, tm, *params = line.strip().split(":")
@@ -123,6 +126,7 @@ with open("all_data.txt") as f:
 			# everyone's teams have switched.
 			for person, t in teams.items():
 				teams[person] = "T" if t == "C" else "C" # assume no spectators
+		if round == "R0": continue # Warmup is uninteresting
 		for func, desc in finders[key]:
 			who, where, value = func(params) or ('', '', 0)
 			if not value: continue
@@ -138,6 +142,6 @@ with open("template.html") as t, open("heatmap.html", "w") as f:
 	print(before, file=f)
 	for fn, img in sorted(images.items()):
 		generate_image(img, 0.875, img_peaks[fn], (0, 64, 0, 255), (240, 255, 240, 255)).save(fn + ".png")
-		print(fn + ".png", img_descs[fn])
+		print(fn + ".png", img_peaks[fn])
 		print("<li><label><input type=radio name=picker value=%s> %s</label></li>" % (fn, img_descs[fn]), file=f)
 	print(after, file=f)

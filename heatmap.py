@@ -79,4 +79,4 @@ img, peak = build_map(data)
 #for row in img:
 #	print(" ".join(format(x, ".1f") if x >= 1.0 else "---" for x in row))
 #print(peak)
-generate_image(img, 1.0, peak, (0, 64, 0, 255), (255, 255, 255, 255)).save("output.png")
+generate_image(img, 0.875, peak, (0, 64, 0, 255), (240, 255, 240, 255)).save("output.png")

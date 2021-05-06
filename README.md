@@ -17,3 +17,5 @@ be baked in. Would exclude all data points outside it, allowing
 the scaling to readjust.
 
 TODO: Use different colours for different stats.
+
+TODO: K/D filtered to whether we then won or lost the round

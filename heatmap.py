@@ -8,11 +8,11 @@ IMAGE_WIDTH = IMAGE_HEIGHT = 1024
 MAP_XMIN = -2400; MAP_YMIN = 3150; MAP_XMAX = 1950; MAP_YMAX = -1200
 MAP_WIDTH = MAP_XMAX - MAP_XMIN
 MAP_HEIGHT = MAP_YMAX - MAP_YMIN
-SPREAD_RADIUS = 16 # pixels (uses quadratic dropoff)
+SPREAD_RADIUS = 16 # pixels (uses distance-squared dropoff)
 # SPREAD_RANGE defines a square on which the spread will be calculated.
 # For each pixel in the square, its real distance is calculated (finer
 # resolution than the pixels), and the spread amount is calculated using
-# quadratic dropoff that falls to zero at DECAY_RADIUS (which is dist^2).
+# linear dropoff that falls to zero at DECAY_RADIUS (which is dist^2).
 SPREAD_RANGE = range(-SPREAD_RADIUS, SPREAD_RADIUS + 1)
 DECAY_RADIUS = abs(MAP_WIDTH * MAP_HEIGHT / IMAGE_WIDTH / IMAGE_HEIGHT * SPREAD_RADIUS ** 2)
 
@@ -38,7 +38,7 @@ def generate_image(img, min, max, rgb_low, rgb_high):
 			# Interpolate a colour value between min and max
 			# If below min, fully transparent, else interp
 			# each channel independently.
-			if value < min:
+			if value <= min:
 				out.extend((0, 0, 0, 0))
 				continue
 			value = (value - min) / span
@@ -58,8 +58,7 @@ def add_dot_to_image(img, x, y, value, peak):
 				altx, alty = img_to_map(basex + dx, basey + dy)
 				dist = (altx - x) ** 2 + (alty - y) ** 2
 				if dist >= DECAY_RADIUS: continue # It's in the corner of the square, too far to be relevant.
-				v += value * ((DECAY_RADIUS - dist) / DECAY_RADIUS) ** 0.5
-				# print("%.3f %3d %d %d %.3f" % (dist, dx**2+ dy**2, dx, dy, ((DECAY_RADIUS - dist) / DECAY_RADIUS) ** 0.5))
+				v += value * (DECAY_RADIUS - dist) / DECAY_RADIUS
 			else: v += value
 			img[basey + dy][basex + dx] = v
 			peak = max(peak, v)
@@ -87,11 +86,14 @@ def flash_hit(params):
 images = defaultdict(lambda: [[0.0] * IMAGE_WIDTH for _ in range(IMAGE_HEIGHT)])
 img_peaks = defaultdict(int)
 img_descs = defaultdict(str)
+limit = -1
 with open("all_data.txt") as f:
 	teams = { }
 	for line in f:
 		if line.startswith("match730_"):
 			# New demo file, identified by file name
+			if not limit: break
+			limit -= 1
 			print(line.strip())
 			teams = { }
 			continue
@@ -121,7 +123,9 @@ with open("template.html") as t, open("heatmap.html", "w") as f:
 	before, after = t.read().split("$$content$$")
 	print(before, file=f)
 	for fn, img in sorted(images.items()):
-		generate_image(img, 0.875, img_peaks[fn], (0, 64, 0, 255), (240, 255, 240, 255)).save(fn + ".png")
+		# Add a colour gauge at the top for debugging
+		# for r in range(10): img[r][:] = [img_peaks[fn] * (i + 1) / IMAGE_WIDTH for i in range(IMAGE_WIDTH)]
+		generate_image(img, 0.875, img_peaks[fn], (0, 64, 0, 192), (240, 255, 240, 255)).save(fn + ".png")
 		print(fn + ".png", img_peaks[fn])
 		print("<li><label><input type=radio name=picker value=%s> %s</label></li>" % (fn, img_descs[fn]), file=f)
 	print(after, file=f)

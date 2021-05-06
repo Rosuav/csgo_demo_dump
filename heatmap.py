@@ -165,8 +165,9 @@ for filename in sorted(data, reverse=True):
 for img in heatmaps.values():
 	# Add a colour gauge at the top for debugging
 	# for r in range(10): img[r][:] = [img_peaks[fn] * (i + 1) / IMAGE_WIDTH for i in range(IMAGE_WIDTH)]
-	generate_image(img.image, 0.875, img.peak, (0, 64, 0, 192), (240, 255, 240, 255)).save(img.fn + ".png")
-	print(img.fn + ".png", img.peak)
+	floor = max(0.875, img.peak / 16)
+	generate_image(img.image, floor, img.peak, (0, 64, 0, 192), (240, 255, 240, 255)).save(img.fn + ".png")
+	print("%s.png [%.3f, %.3f]" % (img.fn, floor, img.peak))
 with open("template.html") as t, open("heatmap.html", "w") as f:
 	radiobuttons = "".join("<ul>" + "".join(
 			f"<li><label><input type=radio name={opt} value=%s> %s</label></li>" % kv for kv in choices.items()

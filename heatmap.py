@@ -28,25 +28,6 @@ def map_to_img(x, y):
 		int((y - MAP_YMIN) * IMAGE_HEIGHT / MAP_HEIGHT),
 	)
 
-def build_map(data):
-	img = [[0.0] * IMAGE_WIDTH for _ in range(IMAGE_HEIGHT)]
-	peak = 0
-	for x, y, value in data:
-		basex, basey = map_to_img(x, y)
-		for dx in SPREAD_RANGE:
-			for dy in SPREAD_RANGE:
-				v = img[basey + dy][basex + dx]
-				if dx or dy:
-					altx, alty = img_to_map(basex + dx, basey + dy)
-					dist = (altx - x) ** 2 + (alty - y) ** 2
-					if dist >= DECAY_RADIUS: continue # It's in the corner of the square, too far to be relevant.
-					v += value * ((DECAY_RADIUS - dist) / DECAY_RADIUS) ** 0.5
-					# print("%.3f %3d %d %d %.3f" % (dist, dx**2+ dy**2, dx, dy, ((DECAY_RADIUS - dist) / DECAY_RADIUS) ** 0.5))
-				else: v += value
-				img[basey + dy][basex + dx] = v
-				peak = max(peak, v)
-	return img, peak
-
 def generate_image(img, min, max, rgb_low, rgb_high):
 	span = max - min
 	colordata = []

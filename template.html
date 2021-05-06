@@ -1,8 +1,11 @@
 <div style="display: flex">
 <img src="output.png" style="background: url('de_dust2_radar.png');">
-<ul>$$content$$</ul>
+$$radiobuttons$$
 </div>
 <script type=module>
-const img = document.querySelector("img");
-document.querySelectorAll("input[name=picker]").forEach(el => el.onchange = e => img.src = e.currentTarget.value + ".png");
+function get_radio(name) {return document.querySelector(`input[name=${name}]:checked`).value;}
+function update() {
+	document.querySelector("img").src = [$$radio_names$$].map(get_radio).join("_") + ".png"
+}
+document.querySelectorAll("input[type=radio]").forEach(el => el.onchange = update);
 </script>

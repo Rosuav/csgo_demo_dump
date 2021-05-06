@@ -1,4 +1,5 @@
 from collections import defaultdict
+from dataclasses import dataclass, field
 import png # pip install pypng
 
 # (0,0) on the image should correspond to (MAP_XMIN, MAP_YMIN)
@@ -15,6 +16,26 @@ SPREAD_RADIUS = 16 # pixels (uses distance-squared dropoff)
 # linear dropoff that falls to zero at DECAY_RADIUS (which is dist^2).
 SPREAD_RANGE = range(-SPREAD_RADIUS, SPREAD_RADIUS + 1)
 DECAY_RADIUS = abs(MAP_WIDTH * MAP_HEIGHT / IMAGE_WIDTH / IMAGE_HEIGHT * SPREAD_RADIUS ** 2)
+
+@dataclass
+class Heatmap:
+	fn: str
+	image: list
+	peak: float = 0.0
+	@classmethod
+	def get(cls, func, name, team):
+		key = (func, name, team)
+		if key not in heatmaps: heatmaps[key] = cls(
+			fn=f"{func.__name__}_{name}_{team}",
+			image=[[0.0] * IMAGE_WIDTH for _ in range(IMAGE_HEIGHT)],
+		)
+		return heatmaps[key]
+heatmaps = { }
+options = {
+	"heatmap": { }, # Filled in below
+	"name": {"Rosuav": "Rosuav", "Stephen": "Stephen"},
+	"team": {"A": "All", "C": "CT", "T": "T"},
+}
 
 def img_to_map(x, y):
 	return (
@@ -47,12 +68,12 @@ def generate_image(img, min, max, rgb_low, rgb_high):
 		colordata.append(out)
 	return png.from_array(colordata, "RGBA")
 
-def add_dot_to_image(img, x, y, value, peak):
+def add_dot_to_image(heatmap, x, y, value):
 	basex, basey = map_to_img(x, y)
 	for dx in SPREAD_RANGE:
 		for dy in SPREAD_RANGE:
 			if basey + dy < 0 or basex + dx < 0: continue # No wrapping
-			try: v = img[basey + dy][basex + dx]
+			try: v = heatmap.image[basey + dy][basex + dx]
 			except IndexError: continue # Past edge? No dot needed
 			if dx or dy:
 				altx, alty = img_to_map(basex + dx, basey + dy)
@@ -60,32 +81,33 @@ def add_dot_to_image(img, x, y, value, peak):
 				if dist >= DECAY_RADIUS: continue # It's in the corner of the square, too far to be relevant.
 				v += value * (DECAY_RADIUS - dist) / DECAY_RADIUS
 			else: v += value
-			img[basey + dy][basex + dx] = v
-			peak = max(peak, v)
-	return peak
+			heatmap.image[basey + dy][basex + dx] = v
+			heatmap.peak = max(heatmap.peak, v)
 
 finders = defaultdict(list)
-def finder(key, desc):
+radiobuttons = []
+def finder(key):
 	def deco(func):
-		finders[key].append((func, desc))
+		finders[key].append(func)
+		options["heatmap"][func.__name__] = func.__doc__
 		return func
 	return deco
 
-@finder("smokegrenade_detonate", "Smoke throws")
+@finder("smokegrenade_detonate")
 def smoke(params):
+	"Smoke throws"
 	return params[0], params[1], 1
-@finder("flash_hit", "FB detonations") # Scored by opponents blinded
+@finder("flash_hit") # Scored by opponents blinded
 def flash_pop(params):
+	"FB detonations"
 	if params[1] in ("Self", "Team"): return None
 	return params[0], params[2], float(params[4])
-@finder("flash_hit", "FB victims") # Ditto.
+@finder("flash_hit") # Ditto.
 def flash_hit(params):
+	"FB victims"
 	if params[1] in ("Self", "Team"): return None
 	return params[0], params[3], float(params[4])
 
-images = defaultdict(lambda: [[0.0] * IMAGE_WIDTH for _ in range(IMAGE_HEIGHT)])
-img_peaks = defaultdict(int)
-img_descs = defaultdict(str)
 limit = -1
 with open("all_data.txt") as f:
 	teams = { }
@@ -109,23 +131,22 @@ with open("all_data.txt") as f:
 			for person, t in teams.items():
 				teams[person] = "T" if t == "C" else "C" # assume no spectators
 		if round == "R0": continue # Warmup is uninteresting
-		for func, desc in finders[key]:
+		for func in finders[key]:
 			who, where, value = func(params) or ('', '', 0)
 			if not value: continue
 			x, y, *_ = where.split(",") # Will have a z coordinate; may also have pitch and yaw.
-			for teamtag in ("", "_" + teams[who]):
-				fn = func.__name__ + "_" + who.split()[0] + teamtag
-				img = images[fn]
-				img_peaks[fn] = add_dot_to_image(img, float(x), float(y), value, img_peaks[fn])
-				img_descs[fn] = desc + " - " + who.split()[0] + " - " + {"_C": "CT", "_T": "T", "": "All"}[teamtag]
+			for teamtag in ("A", teams[who]):
+				add_dot_to_image(Heatmap.get(func, who.split()[0], teamtag), float(x), float(y), value)
 
+# Heatmap.get(lambda: 0, "", "").fn = "output" # Uncomment to create output.png, a blank image. Optionally with colour gauge (below).
+for img in heatmaps.values():
+	# Add a colour gauge at the top for debugging
+	# for r in range(10): img[r][:] = [img_peaks[fn] * (i + 1) / IMAGE_WIDTH for i in range(IMAGE_WIDTH)]
+	generate_image(img.image, 0.875, img.peak, (0, 64, 0, 192), (240, 255, 240, 255)).save(img.fn + ".png")
+	print(img.fn + ".png", img.peak)
 with open("template.html") as t, open("heatmap.html", "w") as f:
-	before, after = t.read().split("$$content$$")
-	print(before, file=f)
-	for fn, img in sorted(images.items()):
-		# Add a colour gauge at the top for debugging
-		# for r in range(10): img[r][:] = [img_peaks[fn] * (i + 1) / IMAGE_WIDTH for i in range(IMAGE_WIDTH)]
-		generate_image(img, 0.875, img_peaks[fn], (0, 64, 0, 192), (240, 255, 240, 255)).save(fn + ".png")
-		print(fn + ".png", img_peaks[fn])
-		print("<li><label><input type=radio name=picker value=%s> %s</label></li>" % (fn, img_descs[fn]), file=f)
-	print(after, file=f)
+	radiobuttons = "".join("<ul>" + "".join(
+			f"<li><label><input type=radio name={opt} value=%s> %s</label></li>" % kv for kv in choices.items()
+		) + "</ul>" for opt, choices in options.items())
+	radio_names = ", ".join('"%s"' % opt for opt in options)
+	f.write(t.read().replace("$$radiobuttons$$", radiobuttons).replace("$$radio_names$$", radio_names))

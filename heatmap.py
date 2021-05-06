@@ -107,6 +107,22 @@ def flash_hit(params):
 	"FB victims"
 	if params[1] in ("Self", "Team"): return None
 	return params[0], params[3], float(params[4])
+@finder("kill")
+def kill_self(params):
+	"Kills (self)"
+	return params[0], params[3], 1
+@finder("kill")
+def kill_victim(params):
+	"Kills (victim)"
+	return params[0], params[4], 1
+@finder("death")
+def death_self(params):
+	"Deaths (self)"
+	return params[0], params[4], 1
+@finder("death")
+def death_killer(params):
+	"Deaths (killer)"
+	if params[3]: return params[0], params[3], 1 # If I die to a non-person, ignore it
 
 limit = -1
 with open("all_data.txt") as f:

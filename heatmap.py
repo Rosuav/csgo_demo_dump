@@ -49,7 +49,6 @@ def generate_image(img, min, max, rgb_low, rgb_high):
 
 def add_dot_to_image(img, x, y, value, peak):
 	basex, basey = map_to_img(x, y)
-	peak = 0
 	for dx in SPREAD_RANGE:
 		for dy in SPREAD_RANGE:
 			if basey + dy < 0 or basex + dx < 0: continue # No wrapping

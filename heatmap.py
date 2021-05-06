@@ -23,6 +23,8 @@ class Heatmap:
 	fn: str
 	image: list
 	peak: float = 0.0
+	first: int = 1<<64 # Timestamps
+	last: int = 0
 	@classmethod
 	def get(cls, func, name, team):
 		key = (func, name, team)
@@ -69,7 +71,9 @@ def generate_image(img, min, max, rgb_low, rgb_high):
 		colordata.append(out)
 	return png.from_array(colordata, "RGBA")
 
-def add_dot_to_image(heatmap, x, y, value):
+def add_dot_to_image(heatmap, timestamp, x, y, value):
+	heatmap.first = min(heatmap.first, timestamp)
+	heatmap.last = max(heatmap.last, timestamp)
 	basex, basey = map_to_img(x, y)
 	for dx in SPREAD_RANGE:
 		for dy in SPREAD_RANGE:
@@ -109,11 +113,11 @@ def flash_hit(params):
 	if params[1] in ("Self", "Team"): return None
 	return params[0], params[3], float(params[4])
 @finder("kill")
-def kill_self(params):
+def kills_self(params):
 	"Kills (self)"
 	return params[0], params[3], 1
 @finder("kill")
-def kill_victim(params):
+def kills_victim(params):
 	"Kills (victim)"
 	return params[0], params[4], 1
 @finder("death")
@@ -156,21 +160,25 @@ for filename in sorted(data, reverse=True):
 				if not value: continue
 				x, y, *_ = where.split(",") # Will have a z coordinate; may also have pitch and yaw.
 				for teamtag in ("A", teams[who]):
-					add_dot_to_image(Heatmap.get(func, who.split()[0], teamtag), float(x), float(y), value)
+					add_dot_to_image(Heatmap.get(func, who.split()[0], teamtag), timestamp, float(x), float(y), value)
 			except Exception:
 				print(key, tick, round, tm, params)
 				raise
 
 # Heatmap.get(lambda: 0, "", "").fn = "output" # Uncomment to create output.png, a blank image. Optionally with colour gauge (below).
+timestamps = { }
 for img in heatmaps.values():
 	# Add a colour gauge at the top for debugging
 	# for r in range(10): img[r][:] = [img_peaks[fn] * (i + 1) / IMAGE_WIDTH for i in range(IMAGE_WIDTH)]
 	floor = max(0.875, img.peak / 16)
 	generate_image(img.image, floor, img.peak, (0, 64, 0, 192), (240, 255, 240, 255)).save(img.fn + ".png")
+	timestamps[img.fn] = [img.first, img.last]
 	print("%s.png [%.3f, %.3f]" % (img.fn, floor, img.peak))
 with open("template.html") as t, open("heatmap.html", "w") as f:
-	radiobuttons = "".join("<ul>" + "".join(
+	f.write(t.read()
+		.replace("$$radiobuttons$$", "".join("<ul>" + "".join(
 			f"<li><label><input type=radio name={opt} value=%s> %s</label></li>" % kv for kv in choices.items()
-		) + "</ul>" for opt, choices in options.items())
-	radio_names = ", ".join('"%s"' % opt for opt in options)
-	f.write(t.read().replace("$$radiobuttons$$", radiobuttons).replace("$$radio_names$$", radio_names))
+		) + "</ul>" for opt, choices in options.items()))
+		.replace("$$radio_names$$", ", ".join('"%s"' % opt for opt in options))
+		.replace("$$timestamps$$", json.dumps(timestamps))
+	)

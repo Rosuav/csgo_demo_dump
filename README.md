@@ -15,3 +15,5 @@ you can scrub through a timeline and see how you've been going.
 TODO: Restrict stats to a specific rectangle - probably has to
 be baked in. Would exclude all data points outside it, allowing
 the scaling to readjust.
+
+TODO: Use different colours for different stats.

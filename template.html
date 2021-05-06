@@ -2,10 +2,18 @@
 <img src="output.png" style="background: url('de_dust2_radar.png');">
 $$radiobuttons$$
 </div>
+<div style="position: absolute; right: 10em; top: 50%" id=timestamp></div>
 <script type=module>
+const timestamps = $$timestamps$$;
 function get_radio(name) {return document.querySelector(`input[name=${name}]:checked`).value;}
 function update() {
-	document.querySelector("img").src = [$$radio_names$$].map(get_radio).join("_") + ".png"
+	const fn = [$$radio_names$$].map(get_radio).join("_");
+	document.querySelector("img").src = fn + ".png";
+	const t = timestamps[fn];
+	document.getElementById("timestamp").innerHTML = (
+		"From: " + new Date(t[0] * 1000).toDateString() +
+		"<br>To: " + new Date(t[1] * 1000).toDateString()
+	)
 }
 document.querySelectorAll("input[type=radio]").forEach(el => el.onchange = update);
 </script>

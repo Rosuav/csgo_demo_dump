@@ -1,5 +1,5 @@
 node_modules
-search.log
+*.log
 *.png
 heatmap.html
 all_data.txt

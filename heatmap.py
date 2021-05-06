@@ -132,11 +132,15 @@ with open("all_data.txt") as f:
 				teams[person] = "T" if t == "C" else "C" # assume no spectators
 		if round == "R0": continue # Warmup is uninteresting
 		for func in finders[key]:
-			who, where, value = func(params) or ('', '', 0)
-			if not value: continue
-			x, y, *_ = where.split(",") # Will have a z coordinate; may also have pitch and yaw.
-			for teamtag in ("A", teams[who]):
-				add_dot_to_image(Heatmap.get(func, who.split()[0], teamtag), float(x), float(y), value)
+			try:
+				who, where, value = func(params) or ('', '', 0)
+				if not value: continue
+				x, y, *_ = where.split(",") # Will have a z coordinate; may also have pitch and yaw.
+				for teamtag in ("A", teams[who]):
+					add_dot_to_image(Heatmap.get(func, who.split()[0], teamtag), float(x), float(y), value)
+			except Exception:
+				print(key, tick, round, tm, params)
+				raise
 
 # Heatmap.get(lambda: 0, "", "").fn = "output" # Uncomment to create output.png, a blank image. Optionally with colour gauge (below).
 for img in heatmaps.values():

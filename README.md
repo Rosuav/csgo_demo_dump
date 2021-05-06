@@ -6,10 +6,8 @@ Or just list everything but use a really greppable format
 Or maybe dump stuff in JSON and let someone else parse it.
 
 For the heatmap, radar images can be obtained from the CSGO
-installation directory and converted to PNG using ImageMagick.
-
-TODO: Save the data in a way that makes it easy to add another
-demo file without regenerating everything.
+installation directory and converted to PNG using ImageMagick
+(see Makefile for an example).
 
 TODO: Time-based or match-based averaging, possibly rolling, so
 you can scrub through a timeline and see how you've been going.

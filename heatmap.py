@@ -1,3 +1,4 @@
+import json
 from collections import defaultdict
 from dataclasses import dataclass, field
 import png # pip install pypng
@@ -124,23 +125,25 @@ def death_killer(params):
 	"Deaths (killer)"
 	if params[3]: return params[0], params[3], 1 # If I die to a non-person, ignore it
 
+with open("demodata.json") as f:
+	data = json.load(f)
+
 limit = -1
-with open("all_data.txt") as f:
+for filename in sorted(data, reverse=True):
+	if filename == "codehash": continue
+	if not limit: break
+	limit -= 1
+	print(filename)
 	teams = { }
-	for line in f:
-		if line.startswith("match730_"):
-			# New demo file, identified by file name
-			if not limit: break
-			limit -= 1
-			print(line.strip())
-			teams = { }
+	for line in data[filename]:
+		key, *params = line.strip().split(":")
+		if key == "date":
+			timestamp = int(params[0])
 			continue
-		key, tick, round, tm, *params = line.strip().split(":")
 		if key == "player":
-			# This one is formatted differently - it doesn't have timing info.
-			# The "tm" field actually gets the player name.
-			teams[tm] = params[1]
+			teams[params[2]] = params[4]
 			continue
+		tick, round, tm, *params = params # Most lines have timestamping information
 		if key == "round_start" and round == "R16":
 			# We don't get the cs_intermission event, so this is our cue that
 			# everyone's teams have switched.

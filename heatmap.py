@@ -20,11 +20,22 @@ DECAY_RADIUS = abs(MAP_WIDTH * MAP_HEIGHT / IMAGE_WIDTH / IMAGE_HEIGHT * SPREAD_
 
 @dataclass
 class Heatmap:
+	# Colours for simple heatmaps
+	RGB_LOW = (0, 64, 0, 192)
+	RGB_HIGH = (240, 255, 240, 255)
+	# Colours for ratio heatmaps
+	RGB_LOW_POS = (0, 0, 64, 192)
+	RGB_HIGH_POS = (240, 240, 255, 255)
+	RGB_LOW_NEG = (64, 0, 0, 192)
+	RGB_HIGH_NEG = (255, 240, 240, 255)
 	fn: str
 	image: list
 	peak: float = 0.0
+	negpeak: float = 0.0 # Will stay permanently at 0.0 for non-ratio heatmaps
 	first: int = 1<<64 # Timestamps
 	last: int = 0
+	def floor(self, peak): # Calculate the floor given a particular peak value. Reduces graph blotchiness.
+		return max(0.875, peak / 16)
 	@classmethod
 	def get(cls, func, name, team):
 		key = (func, name, team)
@@ -33,6 +44,34 @@ class Heatmap:
 			image=[[0.0] * IMAGE_WIDTH for _ in range(IMAGE_HEIGHT)],
 		)
 		return heatmaps[key]
+	def save(self):
+		max = (self.peak, self.negpeak)
+		min = [self.floor(p) for p in max] # min = self.floor(max[*])
+		span = [p - f for p, f in zip(max, min)] # span = max[*] - min[*]
+		if self.negpeak:
+			rgb_low = [self.RGB_LOW_POS, self.RGB_LOW_NEG]
+			rgb_high = [self.RGB_HIGH_POS, self.RGB_HIGH_NEG]
+		else:
+			rgb_low, rgb_high = [self.RGB_LOW], [self.RGB_HIGH]
+		colordata = []
+		for row in self.image:
+			out = []
+			for value in row:
+				q = value < 0
+				if q: value = -value
+				if value > max[q]: value = max[q]
+				# Interpolate a colour value between min and max
+				# If below min, fully transparent, else interp
+				# each channel independently.
+				if value <= min[q]:
+					out.extend((0, 0, 0, 0))
+					continue
+				value = (value - min[q]) / span[q]
+				for lo, hi in zip(rgb_low[q], rgb_high[q]):
+					out.append(int(lo + (hi - lo) * value))
+			colordata.append(out)
+		return png.from_array(colordata, "RGBA").save(self.fn + ".png")
+
 heatmaps = { }
 options = {
 	"heatmap": { }, # Filled in below
@@ -51,25 +90,6 @@ def map_to_img(x, y):
 		int((x - MAP_XMIN) * IMAGE_WIDTH  / MAP_WIDTH),
 		int((y - MAP_YMIN) * IMAGE_HEIGHT / MAP_HEIGHT),
 	)
-
-def generate_image(img, min, max, rgb_low, rgb_high):
-	span = max - min
-	colordata = []
-	for row in img:
-		out = []
-		for value in row:
-			if value > max: value = max
-			# Interpolate a colour value between min and max
-			# If below min, fully transparent, else interp
-			# each channel independently.
-			if value <= min:
-				out.extend((0, 0, 0, 0))
-				continue
-			value = (value - min) / span
-			for lo, hi in zip(rgb_low, rgb_high):
-				out.append(int(lo + (hi - lo) * value))
-		colordata.append(out)
-	return png.from_array(colordata, "RGBA")
 
 def add_dot_to_image(heatmap, timestamp, x, y, value):
 	heatmap.first = min(heatmap.first, timestamp)
@@ -128,6 +148,37 @@ def death_self(params):
 def death_killer(params):
 	"Deaths (killer)"
 	if params[3]: return params[0], params[3], 1 # If I die to a non-person, ignore it
+# Entry kills/deaths are worth tracking too
+@finder("kill")
+def entry_kills_self(params):
+	"Entry kills (self)"
+	if "E" not in params[1]: return None
+	return params[0], params[3], 1
+@finder("kill")
+def entry_kills_victim(params):
+	"Entry kills (victim)"
+	if "E" not in params[1]: return None
+	return params[0], params[4], 1
+@finder("death")
+def entry_death_self(params):
+	"Entry deaths (self)"
+	if "E" not in params[1]: return None
+	return params[0], params[4], 1
+@finder("death")
+def entry_death_killer(params):
+	"Entry deaths (killer)"
+	if "E" not in params[1]: return None
+	if params[3]: return params[0], params[3], 1
+# Ratios are done a bit weirdly. The finder is a function from above,
+# and the decorated function has to return another such function.
+@finder(kills_self)
+def kd_self():
+	"K/D (self)"
+	return death_self
+@finder(kills_victim)
+def kd_other():
+	"K/D (other)"
+	return death_killer
 
 with open("demodata.json") as f:
 	data = json.load(f)
@@ -165,15 +216,42 @@ for filename in sorted(data, reverse=True):
 				print(key, tick, round, tm, params)
 				raise
 
+# Go through and find all the things to multiply. Everything other than the
+# function has to match, and will be retained in the result.
+for (func1, *info), img1 in list(heatmaps.items()): # Ensure that we don't try to do ratios of ratios
+	for func2 in finders[func1]:
+		img2 = heatmaps.get((func2(), *info))
+		if not img2: continue
+		target = Heatmap.get(func2, *info)
+		target.first = min(img1.first, img2.first)
+		target.last = max(img1.last, img2.last)
+		peak1, peak2 = img1.peak, img2.peak
+		floor1, floor2 = img1.floor(peak1), img2.floor(peak2)
+		for row1, row2, trow in zip(img1.image, img2.image, target.image):
+			for i, (value1, value2) in enumerate(zip(row1, row2)):
+				# If both values are below their corresponding floors, leave it zero.
+				# If one value is, treat the other as if it's precisely its floor (to
+				# avoid stupidly big values 
+				# Whichever value is higher, divide it by the other, and put that in.
+				if value1 < floor1 and value2 < floor2: continue # No useful data here.
+				value1 = max(value1, floor1); value2 = max(value2, floor2)
+				if value1 < value2:
+					v = value2 / value1
+					target.negpeak = max(target.negpeak, v)
+					trow[i] = -v
+				else:
+					v = value1 / value2
+					target.peak = max(target.peak, v)
+					trow[i] = v
+
 # Heatmap.get(lambda: 0, "", "").fn = "output" # Uncomment to create output.png, a blank image. Optionally with colour gauge (below).
 timestamps = { }
 for img in heatmaps.values():
 	# Add a colour gauge at the top for debugging
 	# for r in range(10): img[r][:] = [img_peaks[fn] * (i + 1) / IMAGE_WIDTH for i in range(IMAGE_WIDTH)]
-	floor = max(0.875, img.peak / 16)
-	generate_image(img.image, floor, img.peak, (0, 64, 0, 192), (240, 255, 240, 255)).save(img.fn + ".png")
+	img.save()
 	timestamps[img.fn] = [img.first, img.last]
-	print("%s.png [%.3f, %.3f]" % (img.fn, floor, img.peak))
+	print("%s.png [%.3f, %.3f]" % (img.fn, img.floor(img.peak), img.peak))
 with open("template.html") as t, open("heatmap.html", "w") as f:
 	f.write(t.read()
 		.replace("$$radiobuttons$$", "".join("<ul>" + "".join(

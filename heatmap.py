@@ -132,6 +132,11 @@ def flash_hit(params):
 	"FB victims"
 	if params[1] in ("Self", "Team"): return None
 	return params[0], params[3], float(params[4])
+@finder("flash_hit") # Ditto.
+def flash_teamhit(params):
+	"FB team hits"
+	if params[1] != "Team": return None # Note that self-flashing doesn't get included
+	return params[0], params[3], float(params[4])
 @finder("kill")
 def kills_self(params):
 	"Kills (self)"
@@ -179,6 +184,10 @@ def kd_self():
 def kd_other():
 	"K/D (other)"
 	return death_killer
+@finder(flash_hit)
+def flash_ratio():
+	"Flashes - enemy vs team"
+	return flash_teamhit
 
 with open("demodata.json") as f:
 	data = json.load(f)

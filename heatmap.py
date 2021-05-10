@@ -25,9 +25,10 @@ class Heatmap:
 	RGB_HIGH = (240, 255, 240, 255)
 	# Colours for ratio heatmaps
 	RGB_LOW_POS = (0, 0, 64, 192)
-	RGB_HIGH_POS = (240, 240, 255, 255)
+	RGB_HIGH_POS = (64, 0, 255, 255)
 	RGB_LOW_NEG = (64, 0, 0, 192)
-	RGB_HIGH_NEG = (255, 240, 240, 255)
+	RGB_HIGH_NEG = (255, 0, 64, 255)
+	RGB_MID_RANGE = (64, 0, 64, 128)
 	fn: str
 	image: list
 	peak: float = 0.0
@@ -57,6 +58,11 @@ class Heatmap:
 		for row in self.image:
 			out = []
 			for value in row:
+				if value.imag:
+					value = value.real
+					low = self.RGB_MID_RANGE
+				else:
+					low = None
 				q = value < 0
 				if q: value = -value
 				if value > max[q]: value = max[q]
@@ -67,7 +73,7 @@ class Heatmap:
 					out.extend((0, 0, 0, 0))
 					continue
 				value = (value - min[q]) / span[q]
-				for lo, hi in zip(rgb_low[q], rgb_high[q]):
+				for lo, hi in zip(low or rgb_low[q], rgb_high[q]):
 					out.append(int(lo + (hi - lo) * value))
 			colordata.append(out)
 		return png.from_array(colordata, "RGBA").save(self.fn + ".png")
@@ -242,16 +248,28 @@ for (func1, *info), img1 in list(heatmaps.items()): # Ensure that we don't try t
 				# If one value is, treat the other as if it's precisely its floor (to
 				# avoid stupidly big values 
 				# Whichever value is higher, divide it by the other, and put that in.
+				# Alternate plan:
+				# If both are zero, leave blank
+				# If value1 is zero, use value2 and show in red
+				# If value2 is zero, use value1 and show in blue
+				# If both are nonzero, divide, and span from 1/x to x/1 from red to yellow to blue
 				if value1 < floor1 and value2 < floor2: continue # No useful data here.
-				value1 = max(value1, floor1); value2 = max(value2, floor2)
-				if value1 < value2:
-					v = value2 / value1
+				if not value1:
+					v = value2
 					target.negpeak = max(target.negpeak, v)
 					trow[i] = -v
-				else:
-					v = value1 / value2
+				elif not value2:
+					v = value1
 					target.peak = max(target.peak, v)
 					trow[i] = v
+				elif value1 < value2:
+					v = value2 / max(value1, floor1)
+					target.negpeak = max(target.negpeak, v)
+					trow[i] = -v + 1j
+				else:
+					v = value1 / max(value2, floor2)
+					target.peak = max(target.peak, v)
+					trow[i] = v + 1j
 
 # Heatmap.get(lambda: 0, "", "").fn = "output" # Uncomment to create output.png, a blank image. Optionally with colour gauge (below).
 timestamps = { }

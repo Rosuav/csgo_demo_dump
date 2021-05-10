@@ -1,5 +1,5 @@
 <div style="display: flex">
-<img src="output.png" style="background: url('de_dust2_radar.png');">
+<img src="output.png" style="background: url('de_dust2_radar.png'); width: 1024px; height: 1024px">
 $$radiobuttons$$
 </div>
 <div style="position: absolute; right: 10em; top: 50%" id=timestamp></div>
@@ -16,4 +16,8 @@ function update() {
 	)
 }
 document.querySelectorAll("input[type=radio]").forEach(el => el.onchange = update);
+document.querySelector("input[name=heatmap][value=kd_self]").checked = true
+document.querySelector("input[name=name][value=Rosuav]").checked = true
+document.querySelector("input[name=team][value=T]").checked = true
+update()
 </script>
